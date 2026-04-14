@@ -1,0 +1,30 @@
+{
+  "enabledPlugins": {
+    "skill-creator@claude-plugins-official": true
+  },
+  "hooks": {
+    "PostToolUse": [
+      {
+        "matcher": "Write|Edit",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node .claude/hooks/format-on-save.js",
+            "statusMessage": "Formatting with Prettier & ESLint..."
+          }
+        ]
+      },
+      {
+        "matcher": "Bash",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node .claude/hooks/pr-review.js",
+            "statusMessage": "Reviewing PR...",
+            "timeout": 120
+          }
+        ]
+      }
+    ]
+  }
+}

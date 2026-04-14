@@ -1,0 +1,6 @@
+{
+    "env": {
+        "ANTHROPIC_REVIEW_API_KEY": "",
+        "COMMENT_TOKEN": ""
+    }
+}

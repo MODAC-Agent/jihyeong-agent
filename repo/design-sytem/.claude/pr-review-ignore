@@ -1,0 +1,25 @@
+# PR 리뷰에서 제외할 파일 패턴 (.gitignore 문법)
+
+# 패키지 잠금 파일
+yarn.lock
+package-lock.json
+pnpm-lock.yaml
+
+# 빌드 결과물
+dist/**
+build/**
+.next/**
+out/**
+
+# 자동 생성 파일
+*.generated.ts
+*.generated.tsx
+
+# 스타일 토큰 (자동 생성)
+packages/dds-token/src/**
+
+# 테스트 스냅샷
+**/__snapshots__/**
+
+# 설정 파일
+.yarn/**
