@@ -34,7 +34,7 @@ tools:
 - `§RULE-LINK-PATH` — 내부 링크 경로 규칙
 - `§RULE-REFERENCES`, `§RULE-CITE`, `§SOURCE-PRIORITY` — References 정합성
 - `§FRONTMATTER` — frontmatter 스키마
-- `§MDX-COMPONENTS`, `§MDX-CODEPLAYGROUND`, `§MDX-CHECKLIST`, `§MDX-JSX-BALANCE` — 컴포넌트 규칙
+- `§MDX-COMPONENTS`, `§MDX-ANIMATEDSTEP`, `§MDX-CODEPLAYGROUND`, `§MDX-CHECKLIST`, `§MDX-JSX-BALANCE` — 컴포넌트 규칙
 - `§FILE-LAYOUT` — 파일 경로 규칙
 - `§UI-USER-CHOICE` — 사용자 선택지 반환 형식 (오케스트레이터에게 전달 시)
 
@@ -355,7 +355,30 @@ grep -nE '^(- |[0-9]+\. )' <file>
 **중요 원칙**: validator가 제안하는 수정본도 SHARED.md 규칙을 전부 따라야 합니다.
 특히 em-dash, 콜론 구조, `**` 맥락 규칙을 제안 생성 시 재검증하세요.
 
-### 2-5. 영어 인용 한글 풀이 (§RULE-ENGLISH-QUOTE)
+### 2-5. AnimatedStep title 번호 (§MDX-ANIMATEDSTEP)
+
+**SHARED.md §MDX-ANIMATEDSTEP Read**.
+
+AnimatedStep 블록 안의 title 값에서 번호 접두사를 검출합니다:
+
+```bash
+grep -nE 'title:\s*"[0-9]+[\.\s단]' <file>
+grep -nE 'title:\s*"Step\s*[0-9]' <file>
+```
+
+매칭되면 **확정 에러**. 번호 접두사(`\d+[\.\s]*단?계?[\.\s:：-]*`)를 제거합니다.
+남은 문자열이 비었으면 "title이 비어 writer 재작성 필요"로 사용자 확인 카테고리로 분류.
+
+**자동 수정**: 접두사 제거 후 유의미한 문자열이 남으면 직접 Edit.
+
+```
+[§MDX-ANIMATEDSTEP] content/posts/foo.mdx
+  L28  AnimatedStep title (확정 에러)
+    원문: title: "1단계: 기본 동작 이해하기"
+    수정: title: "기본 동작 이해하기"
+```
+
+### 2-6. 영어 인용 한글 풀이 (§RULE-ENGLISH-QUOTE)
 
 **SHARED.md §RULE-ENGLISH-QUOTE Read**.
 
@@ -519,7 +542,40 @@ grep -oE '<Cite\s+id="([^"]+)"' <file> | sed 's/.*id="//;s/"//'
 - **한 문단에 `<Cite>` 2개 이상?** 한 문단을 빈 줄 기준으로 나누고 각 문단에
   `<Cite>` 개수 세기. 2 이상이면 에러.
 
-**자동 수정 불가** — id 오타는 의미 판단 필요, 한 문단에 2개는 내용 재구성 필요.
+- **JSX 컴포넌트 직후 단독 라인 Cite?** (§RULE-CITE 확정 위반) — `</Callout>`,
+  `</AnimatedStep>`, `</CodePlayground>`, 또는 self-closing `<AnimatedStep ... />`,
+  `<CodePlayground ... />` 같은 JSX 블록이 닫힌 다음 빈 줄 1~2개를 사이에 두고
+  `<Cite ... />` 가 단독으로 한 줄에 있으면 위반. 렌더링 시 ⓘ 아이콘만 외롭게
+  떠서 본문 맥락에서 끊겨 보임.
+
+  검출:
+
+  ```bash
+  awk '/<\/Callout>|<\/AnimatedStep>|<\/CodePlayground>|<AnimatedStep[^>]*\/>|<CodePlayground[^>]*\/>/{flag=1;next}
+       flag && /^$/{next}
+       flag && /^<Cite[^>]*\/>$/{print FILENAME":"NR":"$0; flag=0; next}
+       flag{flag=0}' <file>
+  ```
+
+  매칭되면 **사용자 확인 카테고리** 로 분류 (자동 수정 불가 — 어느 본문 단락 끝에
+  옮길지 의미 판단 필요). 제안 형식:
+
+  ```
+  [§RULE-CITE 단독 라인] L90 <Cite id="mdn-ssg" />
+
+  문제: Callout 닫는 태그 직후 단독 라인에 Cite 가 있어요. 렌더 시 ⓘ 아이콘만
+  외롭게 떠요.
+
+  수정 옵션:
+  A) 직전 JSX 블록(Callout) 위의 본문 단락 마지막 문장 끝에 인라인으로 이동
+     예: "...정적 파일로 저장해둬요. 이후 모든 요청자에게 같은 HTML을 CDN
+     edge에서 그대로 서빙해요.<Cite id="mdn-ssg" />"
+  B) Cite 제거 (References items 의 다른 곳에서 이미 인용된 경우)
+  C) 유지 (일부러 둔 경우)
+  ```
+
+**자동 수정 불가** — id 오타는 의미 판단 필요, 한 문단에 2개는 내용 재구성 필요,
+단독 라인 Cite 는 어느 본문 단락 끝에 붙일지 위치 판단 필요.
 
 ### 4-3. 내부 링크 grep + glob 실존 검증 (§RULE-LINK-PATH)
 
@@ -537,6 +593,9 @@ grep -nE '\]\([^)]*\.mdx\)' <file>
 
 # 파일 경로
 grep -nE '\]\(content/posts/' <file>
+
+# slug 에 `/` 포함 (폴더 경로 URL — velite slug 는 파일명 단일 세그먼트)
+grep -nE '\]\(/posts/[^)/]+/[^)]+\)' <file>
 ```
 
 검출된 링크는 **전부 에러**. 자동 수정:
@@ -544,10 +603,15 @@ grep -nE '\]\(content/posts/' <file>
 - `/blog/slug` → `/posts/slug` (접두사만 교체)
 - `/posts/slug.mdx` → `/posts/slug` (확장자 제거)
 - `content/posts/slug.mdx` → `/posts/slug` (경로 변환)
+- `/posts/<folder>/<slug>` → `/posts/<slug>` (마지막 세그먼트만 유지)
 
 **단, 교체 후 slug가 실제 파일과 매칭되는지 4-3-b에서 반드시 재확인**.
 
 **4-3-b. 실존 확인** (Glob 필수)
+
+**선행 조건**: 4-3-a 에서 slug 내 `/` 를 전부 제거한 뒤에만 진입. 이 단계에서
+slug 는 반드시 단일 세그먼트여야 함. `/` 포함 슬러그가 4-3-b 까지 내려오면
+기계 오류 (4-3-a 누락).
 
 각 `/posts/<slug>` 링크에 대해:
 

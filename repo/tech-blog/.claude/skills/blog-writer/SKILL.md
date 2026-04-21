@@ -35,11 +35,12 @@ Read로 로드하세요:
 - `§RULE-BARE-LIST` — 본문 bare 리스트 금지
 - `§RULE-ENGLISH-QUOTE` — 영어 인용 한글 풀이
 - `§RULE-LINK-PATH` — 내부 링크 경로
+- `§RULE-EXTERNAL-MENTION` — 외부 라이브러리/도구/공식 문서 인라인 링크
 - `§RULE-REFERENCES`, `§RULE-CITE` — References 컴포넌트
 - `§META-TITLE`, `§META-DESCRIPTION` — 제목/설명 품질
 - `§COMPLEXITY` — 분량, H2 개수
 - `§FRONTMATTER` — 스키마
-- `§MDX-COMPONENTS`, `§MDX-CODEPLAYGROUND`, `§MDX-CHECKLIST`, `§MDX-JSX-BALANCE`
+- `§MDX-COMPONENTS`, `§MDX-ANIMATEDSTEP`, `§MDX-CODEPLAYGROUND`, `§MDX-CHECKLIST`, `§MDX-JSX-BALANCE`
 - `§FILE-LAYOUT` — 저장 경로
 
 **규칙 내재화 원칙**: writer는 검증 단계가 아니라 **작성 단계에서** 이미 규칙을
@@ -219,7 +220,7 @@ H2 하나씩 순차적으로 채웁니다.
 한 섹션(H2) 작성을 마칠 때마다 **기계적으로 치환 가능한 항목**만 그 자리에서
 바로 확인하고 고칩니다. 의미 판단이 필요한 항목은 Step 8 일괄 체크로 미룹니다.
 
-**즉시 체크할 항목 (4가지)**:
+**즉시 체크할 항목 (5가지)**:
 
 1. **em-dash** — 방금 쓴 섹션에 `—` 가 있는지. 있으면 **즉시 쉼표로 치환**.
    `§RULE-EMDASH` 적용 범위 전부 포함 (본문/주석/prop/코드 블록).
@@ -233,6 +234,10 @@ H2 하나씩 순차적으로 채웁니다.
 4. **반말 문어체** — `~다`, `~이다`, `~한다`, `~된다`, `~있다` 종결이 있는지.
    있으면 즉시 구어 존댓말로 전수 교체. (§BLOG-VOICE, 블로커급)
 
+5. **AnimatedStep title 번호** — `<AnimatedStep>`을 썼다면 title 값이 숫자로
+   시작하는지(`"1. ..."`, `"1단계..."`, `"Step 1..."` 등). 있으면 **즉시 번호
+   접두사 제거**. 컴포넌트가 자동 번호 뱃지를 렌더링함. (§MDX-ANIMATEDSTEP, 확정 에러)
+
 **미루는 항목 (Step 8에서 일괄 체크)**:
 
 - 콜론 구조 (문장 재작성 필요 — 미뤘다가 전체 톤 보면서 판단)
@@ -243,6 +248,7 @@ H2 하나씩 순차적으로 채웁니다.
 - 자기 목소리 존재 (전체 글 톤 잡힌 후 판단)
 - 내부 링크 실존 (저장 직전 마지막에 Glob 검증)
 - References 1순위 출처 (Step 6에서 작성하므로 Step 8에서 재확인)
+- References items 각 항목에 본문 Cite가 하나 이상 붙었는지 (§RULE-CITE, 권고)
 
 **원칙**: Step 4 미니 체크는 **그 섹션 범위 안에서만** 봅니다. 글 전체를 다시
 읽지 않아요. 섹션 작성 흐름을 끊지 않는 게 목적이에요.
@@ -254,6 +260,8 @@ H2 하나씩 순차적으로 채웁니다.
 **원칙** (`§RULE-LINK-PATH`):
 
 - 경로는 반드시 `/posts/<slug>` 또는 `/series/<seriesSlug>`
+- 시리즈 편 간 링크도 **파일명 slug 만** 사용 (`/posts/<partSlug>`).
+  디렉토리 경로 금지: `/posts/<seriesSlug>/<partSlug>` 는 404 (velite slug 는 파일명 단일 세그먼트).
 - `.mdx` 확장자 금지, `/blog/`, `/post/` 등 임의 접두사 금지
 - 한 글에 2~4개 정도. 남발 금지.
 - 문장 안에 녹이기. "관련 글" 박스 금지.
@@ -309,7 +317,14 @@ ls content/posts/<slug>.mdx 2>/dev/null || ls content/posts/*/<slug>.mdx 2>/dev/
 
 - 본문 주장 뒤에 공백 없이: `...지원됩니다.<Cite id="mdn-word-break" />`
 - **한 문단에 최대 1개**
-- 선택 사항, 핵심 주장 한두 군데에만
+- **JSX 컴포넌트 직후 단독 라인에 두지 말 것** (확정 위반, §RULE-CITE):
+  Callout/AnimatedStep/CodePlayground 같은 JSX 블록을 인용 근거로 쓸 때,
+  Cite 는 그 JSX 블록 **앞 본문 단락의 문장 끝**에 인라인으로 붙입니다.
+  JSX 닫는 태그 + 빈 줄 + `<Cite />` 단독 라인 패턴은 렌더링 시 ⓘ 아이콘이
+  외롭게 떠서 시각적으로 끊겨요.
+  - ❌ `</Callout>` + 빈 줄 + `<Cite id="..." />` (단독 라인, 확정 위반)
+  - ✅ `본문 문장.<Cite id="..." />` + 빈 줄 + `<Callout>...</Callout>`
+- **기본 원칙 (권고)**: References items 각 항목마다 본문에 대응 Cite를 하나 이상 붙이는 것을 기본으로 합니다. 해당 사실·인용을 처음 언급하는 지점에 배치. 자연스러운 문장 흐름을 깨뜨리면 생략 가능 (SHOULD, §RULE-CITE).
 
 ### Step 7: 마무리
 
